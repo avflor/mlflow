@@ -89,6 +89,10 @@ _artifact_repository_registry.register('models', ModelsArtifactRepository)
 _artifact_repository_registry.register_entrypoints()
 
 
+def get_artifact_repository_type(artifact_uri):
+    return get_artifact_repository(artifact_uri).get_type()
+
+
 def get_artifact_repository(artifact_uri):
     """Get an artifact repository from the registry based on the scheme of artifact_uri
 

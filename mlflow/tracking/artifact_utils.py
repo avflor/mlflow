@@ -2,14 +2,19 @@
 Utilities for dealing with artifacts in the context of a Run.
 """
 import posixpath
+import os
 
 from six.moves import urllib
 
 from mlflow.exceptions import MlflowException
 from mlflow.protos.databricks_pb2 import INVALID_PARAMETER_VALUE
-from mlflow.store.artifact.artifact_repository_registry import get_artifact_repository
+from mlflow.store.artifact.artifact_repo import ArtifactRepositoryType
+from mlflow.store.artifact.artifact_repository_registry import get_artifact_repository, \
+    get_artifact_repository_type
 from mlflow.store.artifact.models_artifact_repo import ModelsArtifactRepository
 from mlflow.tracking._tracking_service.utils import _get_store
+
+ROOT_PATH_BASE = "artifacts"
 
 
 def get_artifact_uri(run_id, artifact_path=None):
@@ -54,22 +59,45 @@ def _download_artifact_from_uri(artifact_uri, output_path=None):
     :param output_path: The local filesystem path to which to download the artifact. If unspecified,
                         a local output path will be created.
     """
-    parsed_uri = urllib.parse.urlparse(artifact_uri)
-    prefix = ""
-    if parsed_uri.scheme and not parsed_uri.path.startswith("/"):
-        # relative path is a special case, urllib does not reconstruct it properly
-        prefix = parsed_uri.scheme + ":"
-        parsed_uri = parsed_uri._replace(scheme="")
+    artifact_repo_type = get_artifact_repository_type(artifact_uri)
+    if artifact_repo_type == ArtifactRepositoryType.FileSystem:
 
-    # For models:/ URIs, it doesn't make sense to initialize a ModelsArtifactRepository with only
-    # the model name portion of the URI, then call download_artifacts with the version info.
-    if ModelsArtifactRepository.is_models_uri(artifact_uri):
-        root_uri = artifact_uri
-        artifact_path = ""
+        parsed_uri = urllib.parse.urlparse(artifact_uri)
+        prefix = ""
+        if parsed_uri.scheme and not parsed_uri.path.startswith("/"):
+            # relative path is a special case, urllib does not reconstruct it properly
+            prefix = parsed_uri.scheme + ":"
+            parsed_uri = parsed_uri._replace(scheme="")
+
+        # For models:/ URIs, it doesn't make sense to initialize a
+        # ModelsArtifactRepository with only
+        # the model name portion of the URI, then call download_artifacts
+        # with the version info.
+        if ModelsArtifactRepository.is_models_uri(artifact_uri):
+            root_uri = artifact_uri
+            artifact_path = ""
+        else:
+            artifact_path = posixpath.basename(parsed_uri.path)
+            parsed_uri = parsed_uri._replace(path=posixpath.dirname(parsed_uri.path))
+            root_uri = prefix + urllib.parse.urlunparse(parsed_uri)
+
+        return get_artifact_repository(artifact_uri=root_uri).download_artifacts(
+            artifact_path=artifact_path, dst_path=output_path)
     else:
-        artifact_path = posixpath.basename(parsed_uri.path)
-        parsed_uri = parsed_uri._replace(path=posixpath.dirname(parsed_uri.path))
-        root_uri = prefix + urllib.parse.urlunparse(parsed_uri)
+        repo_uri, relative_path = extract_repo_uri_and_relative_artifact_path(artifact_uri)
+        return get_artifact_repository(artifact_uri=repo_uri).download_artifacts(
+            artifact_path=relative_path, dst_path=output_path)
 
-    return get_artifact_repository(artifact_uri=root_uri).download_artifacts(
-        artifact_path=artifact_path, dst_path=output_path)
+
+def extract_repo_uri_and_relative_artifact_path(artifact_uri):
+    """
+    Parse the specified artifact URI to extract the repository uri and the
+    relative artifact path.
+    The repo_uri is of the form DB_URI/runID/ROOT_PATH_BASE where DB_URI:
+    <dialect>+<driver>://<username>:<password>@<host>:<port>/<database>?<query>.
+    """
+
+    split_uri = artifact_uri.split(ROOT_PATH_BASE + os.sep, 1)
+    repo_uri = split_uri[0] + ROOT_PATH_BASE
+    relative_path = split_uri[1]
+    return repo_uri, relative_path

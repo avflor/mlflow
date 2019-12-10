@@ -9,6 +9,11 @@ from mlflow.exceptions import MlflowException
 from mlflow.protos.databricks_pb2 import INVALID_PARAMETER_VALUE, RESOURCE_DOES_NOT_EXIST
 
 
+class ArtifactRepositoryType(object):
+    DB = 1
+    FileSystem = 2
+
+
 class ArtifactRepository:
     """
     Abstract artifact repo that defines how to upload (log) and download potentially large
@@ -17,8 +22,12 @@ class ArtifactRepository:
 
     __metaclass__ = ABCMeta
 
-    def __init__(self, artifact_uri):
+    def __init__(self, artifact_uri, repo_type=ArtifactRepositoryType.FileSystem):
         self.artifact_uri = artifact_uri
+        self.repo_type = repo_type
+
+    def get_type(self):
+        return self.repo_type
 
     @abstractmethod
     def log_artifact(self, local_file, artifact_path=None):
