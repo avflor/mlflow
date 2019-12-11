@@ -61,6 +61,9 @@ setup(
             'azure-storage',
             'google-cloud-storage',
         ],
+        'dbArtifactStore': [
+            "sqlplugin",
+        ],
     },
     entry_points='''
         [console_scripts]
