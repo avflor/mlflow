@@ -62,6 +62,8 @@ def _download_artifact_from_uri(artifact_uri, output_path=None):
     print("artifact_uri before type function:", artifact_uri)
     artifact_repo_type = get_artifact_repository_type(artifact_uri)
     print("artifact_uri after type function:", artifact_uri)
+    print("artifact_repo_type after type function:", artifact_repo_type)
+
     if artifact_repo_type == ArtifactRepositoryType.FileSystem:
 
         parsed_uri = urllib.parse.urlparse(artifact_uri)
