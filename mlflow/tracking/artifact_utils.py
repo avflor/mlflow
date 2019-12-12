@@ -59,7 +59,9 @@ def _download_artifact_from_uri(artifact_uri, output_path=None):
     :param output_path: The local filesystem path to which to download the artifact. If unspecified,
                         a local output path will be created.
     """
+    print("artifact_uri before type function:", artifact_uri)
     artifact_repo_type = get_artifact_repository_type(artifact_uri)
+    print("artifact_uri after type function:", artifact_uri)
     if artifact_repo_type == ArtifactRepositoryType.FileSystem:
 
         parsed_uri = urllib.parse.urlparse(artifact_uri)
@@ -84,7 +86,10 @@ def _download_artifact_from_uri(artifact_uri, output_path=None):
         return get_artifact_repository(artifact_uri=root_uri).download_artifacts(
             artifact_path=artifact_path, dst_path=output_path)
     else:
+        print("artifact_uri before extract function:", artifact_uri)
         repo_uri, relative_path = extract_repo_uri_and_relative_artifact_path(artifact_uri)
+        print("repo_uri, relative_path after extract function:", repo_uri, relative_path)
+
         return get_artifact_repository(artifact_uri=repo_uri).download_artifacts(
             artifact_path=relative_path, dst_path=output_path)
 
